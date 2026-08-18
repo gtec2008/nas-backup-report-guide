@@ -191,13 +191,17 @@ Free / Total และเปอร์เซ็นต์พื้นที่ว�
 
 ใช้หน่วย GiB:
 
+
 1 GiB = 1024³ bytes
+
 จำนวนไฟล์ Backup
+
 FULL = 28 ไฟล์ .bak รวม master, msdb และ model
+
 DIFF = 25 ไฟล์ .bak
 
 
-### Version History
+## Version History
 
 Version : 2.1.1 (06/2026) - Offsite B2 Secure Env
 
