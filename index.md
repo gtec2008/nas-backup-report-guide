@@ -197,10 +197,8 @@ FULL = 28 ไฟล์ .bak รวม master, msdb และ model
 DIFF = 25 ไฟล์ .bak
 
 
-###Version History
+### Version History
 
-Version 2.1.1 — Offsite B2 Secure Environment
-
-Version 2.4.0 — NAS Health Monitoring via SNMPv3
-
-Version 2.5.0 — DX517 Monitoring and SNMPv3 Reliability Improvements
+Version : 2.1.1 (06/2026) - Offsite B2 Secure Env
+Version : 2.4.0 (25/07/2569) - Add NAS Health and Status Monitoring via SNMPv3
+Version : 2.5.0 (18/08/2569) - Add DX517 Disk and Temperature Monitoring | Improve SNMPv3 Timeout and Retry
