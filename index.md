@@ -55,25 +55,93 @@
 - `FAN NORMAL` = พัดลมปกติ
 - `POWER NORMAL` = แหล่งจ่ายไฟปกติ
 
-###NAS Health : สุขภาพ NAS และ DX517 ที่อ่านผ่าน SNMPv3
- • SYSTEM : NORMAL=ปกติ | FAILED=ผิดปกติ
- • STORAGE POOL : NORMAL / REPAIRING / SYNCING / DEGRADED / CRASHED ฯลฯ
-   (MIB แสดงสถานะ Storage Pool โดยไม่ระบุประเภท RAID/SHR)
- • HDD NAS X/Y NORMAL : จำนวน HDD ภายใน NAS ที่ปกติ/ทั้งหมด
- • HDD DX517 X/Y HEALTHY : จำนวน HDD ใน Expansion Unit DX517 ที่ปกติ/ทั้งหมด
- • HEALTHY (UNALLOCATED) : HDD ปกติ แต่ยังไม่ได้เพิ่มเข้า Storage Pool หรือ Volume
-   จึงไม่ถือเป็น Disk Failure และไม่ทำให้สถานะระบบเป็น CRITICAL
- • SSD CACHE X/Y NORMAL : จำนวน SSD Cache ที่ปกติ/ทั้งหมด
- • TEMP : แสดงอุณหภูมิแยกเป็น NAS, HDD NAS, HDD DX517 และ SSD CACHE
-   เตือนเมื่อ NAS >=60°C หรือ HDD/SSD >=55°C
- • FAN / POWER : NORMAL=ปกติ | FAILED=ผิดปกติ
- • MONITOR ERROR : ระบบอ่านค่า SNMPv3 ไม่สำเร็จหลัง Retry ครบทุกครั้ง
-   ให้ตรวจสอบ SNMPv3, Network, NAS Load และ PowerShell SNMP Module
+## 🩺 NAS Health
 
- POWER FAILED = NAS ตรวจพบว่าแหล่งจ่ายไฟผิดปกติ ไม่ได้แปลว่าไฟดับทันที
- • NAS อาจยังทำงานได้ หากแหล่งจ่ายไฟหรืออะแดปเตอร์ผิดปกติ หรือ NAS รับไฟจาก UPS
- • ถ้าไฟขาดจน NAS ดับ จะอ่าน SNMP ไม่ได้ และรายงานเป็น MONITOR ERROR / NAS OFFLINE
- • ควรตรวจสอบอะแดปเตอร์ สายไฟ ปลั๊ก และ UPS โดยเร็ว
+สุขภาพของ **NAS และ DX517** อ่านผ่าน **SNMPv3**
+
+### สถานะระบบ
+
+- **SYSTEM**
+  - `NORMAL` = ระบบทำงานปกติ
+  - `FAILED` = ระบบตรวจพบความผิดปกติ
+
+- **STORAGE POOL**
+  - สถานะที่อาจแสดง ได้แก่ `NORMAL`, `REPAIRING`, `SYNCING`, `DEGRADED` และ `CRASHED`
+  - MIB แสดงสถานะของ Storage Pool โดยไม่ระบุประเภท RAID หรือ SHR
+
+### สถานะอุปกรณ์จัดเก็บข้อมูล
+
+- **HDD NAS X/Y NORMAL**
+  - จำนวน HDD ภายใน NAS ที่ปกติ เทียบกับจำนวนทั้งหมด
+
+- **HDD DX517 X/Y HEALTHY**
+  - จำนวน HDD ภายใน Expansion Unit DX517 ที่ปกติ เทียบกับจำนวนทั้งหมด
+
+- **HEALTHY (UNALLOCATED)**
+  - HDD ทำงานปกติ แต่ยังไม่ได้เพิ่มเข้า Storage Pool หรือ Volume
+  - ไม่ถือเป็น Disk Failure
+  - ไม่ทำให้สถานะระบบเป็น `CRITICAL`
+
+- **SSD CACHE X/Y NORMAL**
+  - จำนวน SSD Cache ที่ปกติ เทียบกับจำนวนทั้งหมด
+
+### 🌡️ อุณหภูมิ
+
+แสดงอุณหภูมิแยกตามกลุ่มอุปกรณ์:
+
+- NAS
+- HDD ภายใน NAS
+- HDD ใน DX517
+- SSD Cache
+
+เกณฑ์แจ้งเตือน:
+
+| อุปกรณ์ | แจ้งเตือนเมื่อ |
+|---|---:|
+| NAS | ตั้งแต่ 60°C |
+| HDD | ตั้งแต่ 55°C |
+| SSD Cache | ตั้งแต่ 55°C |
+
+### พัดลมและแหล่งจ่ายไฟ
+
+- **FAN**
+  - `NORMAL` = พัดลมทำงานปกติ
+  - `FAILED` = ระบบตรวจพบความผิดปกติของพัดลม
+
+- **POWER**
+  - `NORMAL` = แหล่งจ่ายไฟปกติ
+  - `FAILED` = ระบบตรวจพบความผิดปกติของแหล่งจ่ายไฟ
+
+### MONITOR ERROR
+
+`MONITOR ERROR` หมายถึง ระบบไม่สามารถอ่านข้อมูลผ่าน SNMPv3 ได้ แม้จะ Retry ครบทุกครั้งแล้ว
+
+ควรตรวจสอบ:
+
+- การตั้งค่า SNMPv3
+- Network ระหว่างเครื่อง Monitor และ NAS
+- ภาระการทำงานของ NAS หรือ `NAS Load`
+- PowerShell SNMP Module
+- งาน Backup หรือ Data Scrubbing ที่กำลังทำงาน
+
+> **หมายเหตุ:** `MONITOR ERROR` หมายถึงระบบ Monitor อ่านสถานะไม่ได้  
+> ไม่ได้ยืนยันว่า NAS, Storage Pool หรือ HDD เสีย
+
+### ⚠️ POWER FAILED
+
+`POWER FAILED` หมายถึง NAS ตรวจพบความผิดปกติของแหล่งจ่ายไฟ แต่ไม่ได้หมายความว่าไฟดับทันที
+
+- NAS อาจยังทำงานได้ หากอะแดปเตอร์หรือแหล่งจ่ายไฟเริ่มผิดปกติ
+- NAS อาจยังได้รับไฟจาก UPS
+- หากไฟขาดจน NAS ดับ ระบบจะอ่าน SNMP ไม่ได้
+- กรณี NAS ดับ รายงานจะเป็น `MONITOR ERROR` หรือ `NAS OFFLINE` ไม่ใช่ `POWER FAILED`
+
+เมื่อพบ `POWER FAILED` ควรรีบตรวจสอบ:
+
+1. อะแดปเตอร์ของ NAS
+2. สายไฟและขั้วต่อ
+3. ปลั๊กไฟ
+4. UPS
 
 พื้นที่ C: และ NAS Volume 1 : Free / Total ใช้หน่วย GiB
 (1 GiB = 1024^3 bytes) และแสดงเปอร์เซ็นต์พื้นที่ว่าง
