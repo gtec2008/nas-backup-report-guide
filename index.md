@@ -1,210 +1,287 @@
 # คู่มืออ่านรายงานระบบสำรองข้อมูล
 
-หน้านี้ใช้อธิบายความหมายของสถานะในรายงาน Backup ประจำวัน
+หน้านี้อธิบายความหมายของตัวชี้วัดและสถานะต่าง ๆ ในรายงาน Backup ประจำวัน
 
-## Backup Metrics
+---
+
+## 📊 Backup Metrics
 
 ### ⏱️ Duration
 
-ระยะเวลารวมตั้งแต่ SQL Backup → NAS → Cleanup
+ระยะเวลารวมของกระบวนการ:
 
-- `s` = วินาที
-- `m` = นาที
-- `h` = ชั่วโมง
+```text
+SQL Backup → NAS → Cleanup
+```
+
+หน่วยเวลา:
+
+* `s` = วินาที
+* `m` = นาที
+* `h` = ชั่วโมง
 
 ### ✅ SYNCED X→X
 
-ผลการคัดลอกไฟล์จาก Local ไป NAS ซึ่งอ่านจาก Robocopy Log
+ผลการคัดลอกไฟล์จาก Local ไปยัง NAS โดยอ่านจาก Robocopy Log
 
-- `28→28` = สำเร็จครบ 28 ไฟล์
-- `28→27` = สำเร็จ 27 จาก 28 ไฟล์
+ตัวอย่าง:
+
+* `28→28` = คัดลอกสำเร็จครบ 28 ไฟล์
+* `28→27` = คัดลอกสำเร็จ 27 จากทั้งหมด 28 ไฟล์
 
 ### ✅ VERIFIED
 
-ตรวจสอบไฟล์ `.bak` ด้วย SQL Server `RESTORE VERIFYONLY`
+ตรวจสอบความสมบูรณ์ของไฟล์ `.bak` ด้วยคำสั่ง SQL Server:
 
-- `✅ VERIFIED` = ไฟล์ผ่านการตรวจสอบ
-- `❌ VERIFY FAILED` = ไฟล์ไม่ผ่านการตรวจสอบ
+```sql
+RESTORE VERIFYONLY
+```
 
-### 📈 ขนาดไฟล์
+สถานะที่แสดง:
+
+* `✅ VERIFIED` = ไฟล์ผ่านการตรวจสอบ
+* `❌ VERIFY FAILED` = ไฟล์ไม่ผ่านการตรวจสอบ
+
+> `RESTORE VERIFYONLY` ตรวจสอบว่า SQL Server สามารถอ่านโครงสร้าง Backup ได้ แต่ไม่สามารถทดแทนการทดลอง Restore ฐานข้อมูลจริงได้
+
+### 📈 แนวโน้มขนาดไฟล์
 
 เปรียบเทียบขนาด FULL Backup กับรอบเวลาเดียวกันของวันก่อน
 
-- `📈` = ขนาดเพิ่มขึ้น
-- `📉` = ขนาดลดลง
+* `📈 +X MB` = ขนาด Backup เพิ่มขึ้น
+* `📉 -X MB` = ขนาด Backup ลดลง
 
-## Offsite Backblaze B2
+---
 
-ตรวจสอบจาก Completion Marker บน Backblaze B2
+## ☁️ Offsite Backblaze B2
 
-- `SUCCESS` = อัปโหลดเสร็จสมบูรณ์ภายในเวลาที่กำหนด
-- `DELAYED` = Completion Marker เกิน 1 วัน
+ตรวจสอบความสำเร็จจาก Completion Marker บน Backblaze B2
 
-การตรวจ Completion Marker ช่วยป้องกันการรายงานสำเร็จ ทั้งที่การอัปโหลดเสร็จเพียงบางส่วน
+* `SUCCESS` = Completion Marker ได้รับการอัปเดตภายในเวลาที่กำหนด
+* `DELAYED` = Completion Marker มีอายุเกิน 1 วัน
 
-## NAS Health
+การตรวจ Completion Marker ช่วยลดปัญหา False Success ซึ่งอาจเกิดจากการอัปโหลดข้อมูลเพียงบางส่วนแล้วกระบวนการหยุดทำงาน
 
-อ่านสถานะ NAS และ DX517 ผ่าน SNMPv3
-
-- `SYSTEM NORMAL` = ระบบ NAS ปกติ
-- `STORAGE POOL NORMAL` = Storage Pool ปกติ
-- `HDD NAS X/Y` = HDD ภายใน NAS ที่ปกติ/ทั้งหมด
-- `HDD DX517 X/Y` = HDD ใน Expansion Unit ที่ปกติ/ทั้งหมด
-- `HEALTHY (UNALLOCATED)` = HDD ปกติ แต่ยังไม่ได้เพิ่มเข้า Storage Pool หรือ Volume
-- `SSD CACHE X/Y` = SSD Cache ที่ปกติ/ทั้งหมด
-- `FAN NORMAL` = พัดลมปกติ
-- `POWER NORMAL` = แหล่งจ่ายไฟปกติ
+---
 
 ## 🩺 NAS Health
 
-สุขภาพของ **NAS และ DX517** อ่านผ่าน **SNMPv3**
+อ่านสถานะของ NAS และ Expansion Unit DX517 ผ่าน SNMPv3
 
 ### สถานะระบบ
 
-- **SYSTEM**
-  - `NORMAL` = ระบบทำงานปกติ
-  - `FAILED` = ระบบตรวจพบความผิดปกติ
+#### SYSTEM
 
-- **STORAGE POOL**
-  - สถานะที่อาจแสดง ได้แก่ `NORMAL`, `REPAIRING`, `SYNCING`, `DEGRADED` และ `CRASHED`
-  - MIB แสดงสถานะของ Storage Pool โดยไม่ระบุประเภท RAID หรือ SHR
+* `NORMAL` = ระบบ NAS ทำงานปกติ
+* `FAILED` = ระบบ NAS ตรวจพบความผิดปกติ
+
+#### STORAGE POOL
+
+สถานะที่อาจแสดง ได้แก่:
+
+* `NORMAL` = Storage Pool ทำงานปกติ
+* `REPAIRING` = กำลังซ่อมแซม Storage Pool
+* `SYNCING` = กำลังซิงโครไนซ์ข้อมูล
+* `DEGRADED` = Storage Pool สูญเสียความทนทานบางส่วน
+* `CRASHED` = Storage Pool เกิดความเสียหายร้ายแรง
+
+> Synology MIB แสดงสถานะ Storage Pool โดยไม่ระบุว่าเป็น RAID หรือ SHR ประเภทใด
 
 ### สถานะอุปกรณ์จัดเก็บข้อมูล
 
-- **HDD NAS X/Y NORMAL**
-  - จำนวน HDD ภายใน NAS ที่ปกติ เทียบกับจำนวนทั้งหมด
+#### HDD NAS X/Y NORMAL
 
-- **HDD DX517 X/Y HEALTHY**
-  - จำนวน HDD ภายใน Expansion Unit DX517 ที่ปกติ เทียบกับจำนวนทั้งหมด
+จำนวน HDD ภายใน NAS ที่ทำงานปกติ เทียบกับจำนวน HDD ภายในทั้งหมด
 
-- **HEALTHY (UNALLOCATED)**
-  - HDD ทำงานปกติ แต่ยังไม่ได้เพิ่มเข้า Storage Pool หรือ Volume
-  - ไม่ถือเป็น Disk Failure
-  - ไม่ทำให้สถานะระบบเป็น `CRITICAL`
+ตัวอย่าง:
 
-- **SSD CACHE X/Y NORMAL**
-  - จำนวน SSD Cache ที่ปกติ เทียบกับจำนวนทั้งหมด
+```text
+HDD NAS 4/4 NORMAL
+```
 
-### 🌡️ อุณหภูมิ
+หมายถึง HDD ภายใน NAS ปกติครบทั้ง 4 ลูก
 
-แสดงอุณหภูมิแยกตามกลุ่มอุปกรณ์:
+#### HDD DX517 X/Y HEALTHY
 
-- NAS
-- HDD ภายใน NAS
-- HDD ใน DX517
-- SSD Cache
+จำนวน HDD ภายใน Expansion Unit DX517 ที่มีสุขภาพปกติ เทียบกับจำนวนทั้งหมด
 
-เกณฑ์แจ้งเตือน:
+ตัวอย่าง:
 
-| อุปกรณ์ | แจ้งเตือนเมื่อ |
-|---|---:|
-| NAS | ตั้งแต่ 60°C |
-| HDD | ตั้งแต่ 55°C |
-| SSD Cache | ตั้งแต่ 55°C |
+```text
+HDD DX517 2/2 HEALTHY (UNALLOCATED)
+```
 
-### พัดลมและแหล่งจ่ายไฟ
+หมายถึง HDD ใน DX517 มีสุขภาพปกติครบทั้ง 2 ลูก แต่ยังไม่ได้ถูกจัดสรรเข้า Storage Pool หรือ Volume
 
-- **FAN**
-  - `NORMAL` = พัดลมทำงานปกติ
-  - `FAILED` = ระบบตรวจพบความผิดปกติของพัดลม
+#### HEALTHY (UNALLOCATED)
 
-- **POWER**
-  - `NORMAL` = แหล่งจ่ายไฟปกติ
-  - `FAILED` = ระบบตรวจพบความผิดปกติของแหล่งจ่ายไฟ
+หมายถึง HDD มีสุขภาพปกติ แต่ยังไม่ได้เพิ่มเข้า:
 
-### MONITOR ERROR
+* Storage Pool
+* Volume
+* Hot Spare
 
-`MONITOR ERROR` หมายถึง ระบบไม่สามารถอ่านข้อมูลผ่าน SNMPv3 ได้ แม้จะ Retry ครบทุกครั้งแล้ว
+สถานะนี้ไม่ถือเป็น Disk Failure และไม่ทำให้สถานะระบบเป็น `CRITICAL`
 
-ควรตรวจสอบ:
+#### SSD CACHE X/Y NORMAL
 
-- การตั้งค่า SNMPv3
-- Network ระหว่างเครื่อง Monitor และ NAS
-- ภาระการทำงานของ NAS หรือ `NAS Load`
-- PowerShell SNMP Module
-- งาน Backup หรือ Data Scrubbing ที่กำลังทำงาน
+จำนวน SSD Cache ที่ทำงานปกติ เทียบกับจำนวนทั้งหมด
 
-> **หมายเหตุ:** `MONITOR ERROR` หมายถึงระบบ Monitor อ่านสถานะไม่ได้  
-> ไม่ได้ยืนยันว่า NAS, Storage Pool หรือ HDD เสีย
+ตัวอย่าง:
 
-### ⚠️ POWER FAILED
+```text
+SSD CACHE 2/2 NORMAL
+```
 
-`POWER FAILED` หมายถึง NAS ตรวจพบความผิดปกติของแหล่งจ่ายไฟ แต่ไม่ได้หมายความว่าไฟดับทันที
+หมายถึง SSD Cache ปกติครบทั้ง 2 ลูก
 
-- NAS อาจยังทำงานได้ หากอะแดปเตอร์หรือแหล่งจ่ายไฟเริ่มผิดปกติ
-- NAS อาจยังได้รับไฟจาก UPS
-- หากไฟขาดจน NAS ดับ ระบบจะอ่าน SNMP ไม่ได้
-- กรณี NAS ดับ รายงานจะเป็น `MONITOR ERROR` หรือ `NAS OFFLINE` ไม่ใช่ `POWER FAILED`
+---
 
-เมื่อพบ `POWER FAILED` ควรรีบตรวจสอบ:
+## 🌡️ อุณหภูมิ
+
+รายงานแสดงอุณหภูมิแยกตามกลุ่มอุปกรณ์:
+
+* NAS
+* HDD ภายใน NAS
+* HDD ใน DX517
+* SSD Cache
+
+ตัวอย่าง:
+
+```text
+TEMP: NAS 49°C
+| HDD NAS 46°C/45°C/40°C/42°C
+| HDD DX517 38°C/38°C
+| SSD CACHE 45°C/46°C
+```
+
+### เกณฑ์แจ้งเตือน
+
+| อุปกรณ์   |         ปกติ | เริ่มแจ้งเตือน |
+| --------- | -----------: | -------------: |
+| NAS       | ต่ำกว่า 60°C |   ตั้งแต่ 60°C |
+| HDD       | ต่ำกว่า 55°C |   ตั้งแต่ 55°C |
+| SSD Cache | ต่ำกว่า 55°C |   ตั้งแต่ 55°C |
+
+---
+
+## 🌀 FAN
+
+* `FAN NORMAL` = พัดลมทำงานปกติ
+* `FAN FAILED` = ระบบตรวจพบความผิดปกติของพัดลม
+
+เมื่อพบ `FAN FAILED` ควรตรวจสอบพัดลม ช่องระบายอากาศ และฝุ่นภายใน NAS โดยเร็ว
+
+---
+
+## ⚡ POWER
+
+* `POWER NORMAL` = แหล่งจ่ายไฟทำงานปกติ
+* `POWER FAILED` = NAS ตรวจพบความผิดปกติของแหล่งจ่ายไฟ
+
+### POWER FAILED หมายถึงอะไร
+
+`POWER FAILED` ไม่ได้หมายความว่า NAS ดับทันที
+
+NAS อาจยังทำงานได้ในกรณีต่อไปนี้:
+
+* อะแดปเตอร์หรือแหล่งจ่ายไฟเริ่มผิดปกติ
+* สายไฟหรือขั้วต่อมีปัญหา
+* NAS ยังได้รับไฟจาก UPS
+* ระบบตรวจพบแรงดันไฟผิดปกติ
+
+หากไฟขาดจน NAS ดับ ระบบจะไม่สามารถอ่าน SNMP ได้ และรายงานอาจแสดง:
+
+```text
+MONITOR ERROR
+```
+
+หรือ:
+
+```text
+NAS OFFLINE
+```
+
+เมื่อพบ `POWER FAILED` ควรตรวจสอบ:
 
 1. อะแดปเตอร์ของ NAS
 2. สายไฟและขั้วต่อ
 3. ปลั๊กไฟ
 4. UPS
 
-พื้นที่ C: และ NAS Volume 1 : Free / Total ใช้หน่วย GiB
-(1 GiB = 1024^3 bytes) และแสดงเปอร์เซ็นต์พื้นที่ว่าง
+---
 
-full = 28 bak (Hardcode) รวม master, msdb และ model
-diff = 25 bak (Hardcode)
+## ⚠️ MONITOR ERROR
 
-### อุณหภูมิ
+`MONITOR ERROR` หมายถึงระบบไม่สามารถอ่านข้อมูลผ่าน SNMPv3 ได้ หลังจาก Retry ครบทุกครั้งแล้ว
 
-แสดงอุณหภูมิแยกเป็น:
+สาเหตุที่เป็นไปได้:
 
-- NAS
-- HDD ภายใน NAS
-- HDD ใน DX517
-- SSD Cache
+* การตั้งค่า SNMPv3 ไม่ถูกต้อง
+* Network ระหว่างเครื่อง Monitor และ NAS มีปัญหา
+* NAS มีภาระการทำงานสูง
+* NAS กำลัง Backup หรือ Data Scrubbing
+* PowerShell SNMP Module มีปัญหา
+* NAS Offline หรือไม่ตอบสนอง
 
-เกณฑ์แจ้งเตือน:
+> `MONITOR ERROR` หมายถึงระบบ Monitor อ่านสถานะไม่ได้ ไม่ได้ยืนยันว่า NAS, Storage Pool หรือ HDD เสีย
 
-- NAS ตั้งแต่ 60°C
-- HDD หรือ SSD ตั้งแต่ 55°C
+---
 
-### MONITOR ERROR
+## 💾 Storage Capacity
 
-ระบบอ่านข้อมูล SNMPv3 ไม่สำเร็จหลัง Retry ครบทุกครั้ง
+พื้นที่ว่างของไดรฟ์ C: และ NAS Volume แสดงในรูปแบบ:
 
-สิ่งที่ควรตรวจสอบ:
-
-- SNMPv3
-- Network
-- ภาระการทำงานของ NAS
-- PowerShell SNMP Module
-- Data Scrubbing หรือ Backup ที่กำลังทำงาน
-
-### POWER FAILED
-
-NAS ตรวจพบความผิดปกติของแหล่งจ่ายไฟ ไม่ได้หมายความว่า NAS ดับทันที
-
-ควรตรวจสอบอะแดปเตอร์ สายไฟ ปลั๊กไฟ และ UPS
-
-## Storage Capacity
-
-พื้นที่ของไดรฟ์ C: และ NAS Volume แสดงเป็น:
-
-
-
+```text
 Free / Total และเปอร์เซ็นต์พื้นที่ว่าง
+```
 
-ใช้หน่วย GiB:
+ตัวอย่าง:
 
+```text
+NAS Volume 1: Free 10059 GiB / 21430.08 GiB (47%)
+```
 
+ระบบใช้หน่วย GiB:
+
+```text
 1 GiB = 1024³ bytes
+```
 
-จำนวนไฟล์ Backup
+---
 
-FULL = 28 ไฟล์ .bak รวม master, msdb และ model
+## 🗄️ จำนวนไฟล์ Backup
 
-DIFF = 25 ไฟล์ .bak
+### FULL Backup
 
+```text
+28 ไฟล์ .bak
+```
 
-## Version History
+รวมฐานข้อมูลระบบ:
 
-Version : 2.1.1 (06/2026) - Offsite B2 Secure Env
+* `master`
+* `msdb`
+* `model`
 
-Version : 2.4.0 (25/07/2569) - Add NAS Health and Status Monitoring via SNMPv3
+### DIFF Backup
 
-Version : 2.5.0 (18/08/2569) - Add DX517 Disk and Temperature Monitoring | Improve SNMPv3 Timeout and Retry
+```text
+25 ไฟล์ .bak
+```
+
+จำนวนไฟล์ FULL และ DIFF ปัจจุบันกำหนดไว้ในโปรแกรมแบบ Hardcode
+
+---
+
+## 📝 Version History
+
+* **Version 2.1.1 (06/2026)**
+  Offsite B2 Secure Environment
+
+* **Version 2.4.0 (25/07/2569)**
+  Add NAS Health and Status Monitoring via SNMPv3
+
+* **Version 2.5.0 (18/08/2569)**
+  Add DX517 Disk and Temperature Monitoring
+  Improve SNMPv3 Timeout and Retry
